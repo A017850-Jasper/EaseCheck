@@ -1,0 +1,5 @@
+{
+  "name": "新光醫院看診進度監測",
+  "description": "即時監測新光醫院各診別看診進度，支援自定義刷新頻率。",
+  "requestFramePermissions": ["notifications"]
+}
