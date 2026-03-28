@@ -1,4 +1,4 @@
-import { Hospital, Bell, BellOff, RefreshCw, Settings2 } from 'lucide-react';
+import { Activity, Bell, BellOff, RefreshCw, Settings2 } from 'lucide-react';
 import { SubDivision, ClinicProgress } from '../types';
 
 interface HeaderProps {
@@ -46,12 +46,12 @@ export function Header({
         <div className="flex items-center justify-between w-full sm:w-auto">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 sm:w-10 sm:h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 shrink-0">
-              <Hospital size={20} className="sm:hidden" />
-              <Hospital size={24} className="hidden sm:block" />
+              <Activity size={20} className="sm:hidden" />
+              <Activity size={24} className="hidden sm:block" />
             </div>
             <div>
-              <h1 className="text-lg sm:text-xl font-black tracking-tight leading-tight">新光醫院看診進度</h1>
-              <p className="text-[10px] text-black/20 font-bold uppercase tracking-wider hidden xs:block">Real-time Monitor</p>
+              <h1 className="text-lg sm:text-xl font-black tracking-tight leading-tight">診準</h1>
+              <p className="text-[10px] text-black/20 font-bold uppercase tracking-wider hidden xs:block">Smart Clinic Monitor</p>
             </div>
           </div>
           
