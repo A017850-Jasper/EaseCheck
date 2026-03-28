@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { Division, SubDivision, ClinicProgress } from './types';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/api';
+const API_BASE = (import.meta as any).env.VITE_API_BASE || '/api';
 
 export default function App() {
   const [divisions, setDivisions] = useState<Division[]>([]);
@@ -88,6 +88,39 @@ export default function App() {
     }
   }, [targetClinicCode]);
 
+  const sendNotification = useCallback((item: ClinicProgress, diff: number) => {
+    if (Notification.permission === 'granted') {
+      console.log('Sending notification:', item.ClinicName, diff);
+      const title = diff === 0 ? '您的號碼到了！' : '新光醫院到號通知';
+      const body = diff === 0 
+        ? `${item.ClinicName} (${item.DoctorName}) 目前號碼已經是 ${item.CurrentVisitSeq}，請立即前往診室！`
+        : `${item.ClinicName} (${item.DoctorName}) 目前號碼 ${item.CurrentVisitSeq}，距離您的號碼 ${userNumber} 還有 ${diff} 號！`;
+      
+      new Notification(title, {
+        body,
+        icon: 'https://www.skh.org.tw/skh/images/logo.png'
+      });
+      
+      // Play a simple beep sound if possible
+      try {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.5);
+      } catch (e) {
+        console.error('Audio play failed', e);
+      }
+    } else {
+      console.warn('Notification permission not granted:', Notification.permission);
+    }
+  }, [userNumber]);
+
   const fetchProgress = useCallback(async (code: string) => {
     try {
       const res = await fetch(`${API_BASE}/AppointmentProgress?DivisionCode=${code}`);
@@ -123,7 +156,9 @@ export default function App() {
               const diff = target - current;
               const clinicKey = `${item.ClinicCode}-${item.ShiftCode}-${target}`;
               
-              if (diff > 0 && diff <= notifyBefore && !notifiedRef.current.has(clinicKey)) {
+              console.log(`Checking notification for ${item.ClinicName}: current=${current}, target=${target}, diff=${diff}, notifyBefore=${notifyBefore}`);
+
+              if (diff >= 0 && diff <= notifyBefore && !notifiedRef.current.has(clinicKey)) {
                 sendNotification(item, diff);
                 notifiedRef.current.add(clinicKey);
               }
@@ -135,7 +170,7 @@ export default function App() {
       console.error(err);
       setError('更新進度失敗');
     }
-  }, []);
+  }, [isNotifyEnabled, userNumber, targetClinicCode, notifyBefore, sendNotification]);
 
   // Handle auto-refresh
   useEffect(() => {
@@ -191,6 +226,12 @@ export default function App() {
       alert('此瀏覽器不支援桌面通知');
       return;
     }
+
+    // iOS check
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    if (isIOS && !(window.navigator as any).standalone) {
+      alert('iOS 使用者請先將此網頁「加入主畫面」才能接收桌面通知。');
+    }
     
     // If permission is already denied, we can't request it again via code
     if (Notification.permission === 'denied') {
@@ -219,31 +260,6 @@ export default function App() {
     }
     
     setIsNotifyEnabled(!isNotifyEnabled);
-  };
-
-  const sendNotification = (item: ClinicProgress, diff: number) => {
-    if (Notification.permission === 'granted') {
-      new Notification('新光醫院到號通知', {
-        body: `${item.ClinicName} (${item.DoctorName}) 目前號碼 ${item.CurrentVisitSeq}，距離您的號碼 ${userNumber} 還有 ${diff} 號！`,
-        icon: 'https://www.skh.org.tw/skh/images/logo.png'
-      });
-      
-      // Play a simple beep sound if possible
-      try {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
-        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 0.5);
-      } catch (e) {
-        console.error('Audio play failed', e);
-      }
-    }
   };
 
   const filteredDivisions = (Array.isArray(divisions) ? divisions : []).map(div => ({
@@ -347,6 +363,22 @@ export default function App() {
                     <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white" />
                   )}
                 </button>
+                <button 
+                  onClick={() => {
+                    if (Notification.permission === 'granted') {
+                      new Notification('測試通知', {
+                        body: '這是一則測試通知，表示您的裝置可以正常接收提醒。',
+                        icon: 'https://www.skh.org.tw/skh/images/logo.png'
+                      });
+                    } else {
+                      requestNotificationPermission();
+                    }
+                  }}
+                  className="p-1.5 rounded-lg bg-white text-emerald-600 border border-emerald-200 transition-all hover:bg-emerald-50"
+                  title="發送測試通知"
+                >
+                  <Volume2 size={14} />
+                </button>
               </div>
             )}
             
@@ -423,6 +455,22 @@ export default function App() {
                 ))}
               </select>
             </div>
+            <button
+              onClick={() => {
+                if (Notification.permission === 'granted') {
+                  new Notification('測試通知', {
+                    body: '這是一則測試通知，表示您的裝置可以正常接收提醒。',
+                    icon: 'https://www.skh.org.tw/skh/images/logo.png'
+                  });
+                } else {
+                  requestNotificationPermission();
+                }
+              }}
+              className="flex items-center gap-1 shrink-0 bg-emerald-600 text-white px-3 py-1 rounded-lg shadow-sm text-[10px] font-bold"
+            >
+              <Volume2 size={12} />
+              <span>測試</span>
+            </button>
           </div>
         </div>
       )}
