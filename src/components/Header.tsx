@@ -19,6 +19,7 @@ interface HeaderProps {
   setRefreshInterval: (n: number) => void;
   countdown: number;
   loading: boolean;
+  testNotification: () => void;
 }
 
 export function Header({
@@ -38,7 +39,8 @@ export function Header({
   refreshInterval,
   setRefreshInterval,
   countdown,
-  loading
+  loading,
+  testNotification
 }: HeaderProps) {
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-black/5 px-4 sm:px-6 py-3 sm:py-4">

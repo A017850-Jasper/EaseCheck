@@ -11,6 +11,7 @@ interface MobileQuickSettingsProps {
   notifyBefore: number;
   setNotifyBefore: (n: number) => void;
   requestNotificationPermission: () => void;
+  testNotification: () => void;
 }
 
 export function MobileQuickSettings({
@@ -22,7 +23,8 @@ export function MobileQuickSettings({
   setUserNumber,
   notifyBefore,
   setNotifyBefore,
-  requestNotificationPermission
+  requestNotificationPermission,
+  testNotification
 }: MobileQuickSettingsProps) {
   if (!selectedSubDiv) return null;
 
@@ -67,10 +69,7 @@ export function MobileQuickSettings({
         <button
           onClick={() => {
             if (Notification.permission === 'granted') {
-              new Notification('測試通知', {
-                body: '這是一則測試通知，表示您的裝置可以正常接收提醒。',
-                icon: 'https://www.skh.org.tw/skh/images/logo.png'
-              });
+              testNotification();
             } else {
               requestNotificationPermission();
             }

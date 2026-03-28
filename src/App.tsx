@@ -26,6 +26,7 @@ export default function App() {
     setIsNotifyEnabled,
     permissionStatus,
     requestNotificationPermission,
+    testNotification,
     checkAndSendNotification,
     clearNotified
   } = useNotifications(userNumber);
@@ -115,6 +116,7 @@ export default function App() {
         setRefreshInterval={setRefreshInterval}
         countdown={countdown}
         loading={loading}
+        testNotification={testNotification}
       />
       
       <MobileQuickSettings 
@@ -127,6 +129,7 @@ export default function App() {
         notifyBefore={notifyBefore}
         setNotifyBefore={setNotifyBefore}
         requestNotificationPermission={requestNotificationPermission}
+        testNotification={testNotification}
       />
 
       <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
