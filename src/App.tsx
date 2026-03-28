@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { Division, SubDivision, ClinicProgress } from './types';
 
-const API_BASE = '/api';
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 export default function App() {
   const [divisions, setDivisions] = useState<Division[]>([]);
