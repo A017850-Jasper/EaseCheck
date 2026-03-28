@@ -1,5 +1,5 @@
 {
   "name": "診準",
-  "description": "即時監測新光醫院各診別看診進度，支援自定義刷新頻率與到號提醒。",
+  "description": "新光醫院診間進度即時監測工具。提供自動更新與手機推播通知，讓您輕鬆掌握看診進度，減少診間候位時間。",
   "requestFramePermissions": ["notifications"]
 }
