@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Stethoscope, Bell, BellOff } from 'lucide-react';
+import { User, Stethoscope, Bell, BellOff, Hourglass } from 'lucide-react';
 import { ClinicProgress } from '../types';
 import { getNumberColorClass } from '../utils/clinicUtils';
 
@@ -21,6 +21,10 @@ export function ClinicCard({
   isNotifyEnabled,
   requestNotificationPermission
 }: ClinicCardProps) {
+  const currentNum = parseInt(item.CurrentVisitSeq);
+  const userNum = parseInt(userNumber);
+  const isWaiting = !isNaN(userNum) && !isNaN(currentNum) && userNum > currentNum;
+
   return (
     <motion.div
       layout
@@ -74,6 +78,25 @@ export function ClinicCard({
         </div>
       </div>
       
+      {isWaiting && (
+        <div className="mt-4 pt-3 border-t border-black/5 flex items-center justify-between">
+          <div className="text-[9px] sm:text-[10px] font-bold text-black/30 uppercase tracking-widest flex items-center gap-1">
+            <Hourglass size={10} /> 預計等待時間
+          </div>
+          <div className="text-xs sm:text-sm font-bold text-emerald-600">
+            {item.estimatedMinutes !== undefined ? (
+              item.estimatedMinutes === null ? (
+                <span className="text-black/20 italic">計算中...</span>
+              ) : (
+                `約 ${item.estimatedMinutes} 分鐘`
+              )
+            ) : (
+              <span className="text-black/20 italic">等待資料更新...</span>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="mt-4 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${item.ClinicVisitState === '1' ? 'bg-emerald-500 animate-pulse' : 'bg-black/10'}`} />

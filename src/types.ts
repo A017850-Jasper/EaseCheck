@@ -32,4 +32,5 @@ export interface ClinicProgress {
   NextVisitSeqDesc: string;
   CallSequenceCode: string;
   CheckInCount: string;
+  estimatedMinutes?: number | null;
 }

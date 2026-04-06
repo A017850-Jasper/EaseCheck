@@ -21,6 +21,7 @@ export function useClinicProgress(
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
+  const historyRef = useRef<Record<string, { timestamp: number; seq: number }[]>>({});
 
   const fetchProgress = useCallback(async (code: string) => {
     try {
@@ -32,7 +33,47 @@ export function useClinicProgress(
       }
       const data: ClinicProgress[] = await res.json();
       
-      const sortedData = [...data].sort((a, b) => {
+      const now = Date.now();
+      const userNumInt = parseInt(userNumber);
+
+      const dataWithEstimation = data.map(item => {
+        const key = `${item.ClinicCode}-${item.ShiftCode}-${item.DoctorEmpNo}`;
+        const currentSeq = parseInt(item.CurrentVisitSeq);
+        
+        if (isNaN(currentSeq)) return item;
+
+        // Update history
+        if (!historyRef.current[key]) historyRef.current[key] = [];
+        const history = historyRef.current[key];
+        
+        // Only add if sequence changed or it's the first point
+        if (history.length === 0 || history[history.length - 1].seq !== currentSeq) {
+          history.push({ timestamp: now, seq: currentSeq });
+        }
+
+        // Keep only last 10 points or last 30 mins
+        if (history.length > 10) history.shift();
+        while (history.length > 2 && now - history[0].timestamp > 30 * 60 * 1000) {
+          history.shift();
+        }
+
+        let estimatedMinutes: number | null = null;
+        if (!isNaN(userNumInt) && userNumInt > currentSeq && history.length >= 2) {
+          const first = history[0];
+          const last = history[history.length - 1];
+          const timeDiff = (last.timestamp - first.timestamp) / (1000 * 60); // minutes
+          const seqDiff = last.seq - first.seq;
+
+          if (seqDiff > 0 && timeDiff > 0) {
+            const minsPerPatient = timeDiff / seqDiff;
+            estimatedMinutes = Math.ceil((userNumInt - currentSeq) * minsPerPatient);
+          }
+        }
+
+        return { ...item, estimatedMinutes };
+      });
+
+      const sortedData = [...dataWithEstimation].sort((a, b) => {
         if (targetClinicCode !== 'all') {
           if (a.ClinicCode === targetClinicCode) return -1;
           if (b.ClinicCode === targetClinicCode) return 1;
@@ -47,7 +88,7 @@ export function useClinicProgress(
       if (isNotifyEnabled && userNumber) {
         const target = parseInt(userNumber);
         if (!isNaN(target)) {
-          data.forEach(item => {
+          dataWithEstimation.forEach(item => {
             if (targetClinicCode !== 'all' && item.ClinicCode !== targetClinicCode) return;
             checkAndSendNotification(item, target, notifyBefore);
           });
@@ -60,6 +101,11 @@ export function useClinicProgress(
       setLoading(false);
     }
   }, [isNotifyEnabled, userNumber, targetClinicCode, notifyBefore, checkAndSendNotification]);
+
+  useEffect(() => {
+    // Clear history when subdivision changes
+    historyRef.current = {};
+  }, [selectedSubDiv]);
 
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current);
