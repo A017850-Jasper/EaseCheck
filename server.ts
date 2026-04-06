@@ -84,10 +84,12 @@ async function startServer() {
         });
       }
     } catch (error) {
+      const isTimeout = error instanceof Error && (error.name === 'FetchError' && (error as any).code === 'ETIMEDOUT' || error.message.includes('timeout'));
       console.error(`Proxy error (Divisions) [${requestId}]:`, error);
-      res.status(500).json({ 
-        error: "Failed to fetch divisions", 
+      res.status(isTimeout ? 504 : 500).json({ 
+        error: isTimeout ? "Hospital Server Connection Timeout" : "Failed to fetch divisions", 
         message: error instanceof Error ? error.message : String(error),
+        details: isTimeout ? "醫院伺服器連線逾時，可能是醫院端暫時封鎖了雲端伺服器的 IP，或醫院系統正在維護中。" : undefined,
         requestId
       });
     }
@@ -145,10 +147,12 @@ async function startServer() {
         });
       }
     } catch (error) {
+      const isTimeout = error instanceof Error && (error.name === 'FetchError' && (error as any).code === 'ETIMEDOUT' || error.message.includes('timeout'));
       console.error(`Proxy error (Progress) [${requestId}]:`, error);
-      res.status(500).json({ 
-        error: "Failed to fetch progress", 
+      res.status(isTimeout ? 504 : 500).json({ 
+        error: isTimeout ? "Hospital Server Connection Timeout" : "Failed to fetch progress", 
         message: error instanceof Error ? error.message : String(error),
+        details: isTimeout ? "醫院伺服器連線逾時，可能是醫院端暫時封鎖了雲端伺服器的 IP，或醫院系統正在維護中。" : undefined,
         requestId
       });
     }
