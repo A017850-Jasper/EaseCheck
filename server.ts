@@ -12,35 +12,42 @@ async function startServer() {
   async function getCookies() {
     if (cachedCookies.length > 0) return cachedCookies.join("; ");
     try {
+      console.log("Fetching initial cookies...");
       const response = await fetch("https://www.skh.org.tw/skh/index.html", {
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-        }
+        },
+        timeout: 10000
       });
       const setCookie = response.headers.raw()["set-cookie"];
       if (setCookie) {
         cachedCookies = setCookie.map(c => c.split(";")[0]);
+        console.log("Cookies fetched successfully:", cachedCookies.length);
+      } else {
+        console.warn("No set-cookie header found in initial response");
       }
       return cachedCookies.join("; ");
     } catch (e) {
-      console.error("Failed to fetch initial cookies", e);
+      console.error("Failed to fetch initial cookies:", e);
       return "";
     }
   }
 
   // Proxy for RegistrationDivision
   app.get("/api/RegistrationDivision", async (req, res) => {
+    const requestId = randomUUID();
     try {
       const cookies = await getCookies();
-      const requestId = randomUUID();
-      const xDate = new Date().toISOString();
+      const xDate = new Date().toUTCString();
+      console.log(`Proxying RegistrationDivision request [${requestId}] at ${xDate}`);
+      
       const response = await fetch("https://www.skh.org.tw/regis_api/RegistrationDivision", {
         method: "GET",
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
           "Accept": "application/json, text/plain, */*",
           "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
-          "Accept-Encoding": "gzip, deflate, br",
+          "Accept-Encoding": "gzip, deflate",
           "Content-Type": "application/json",
           "X-Request-ID": requestId,
           "X-Date": xDate,
@@ -49,36 +56,59 @@ async function startServer() {
           "Origin": "https://www.skh.org.tw",
           "Connection": "keep-alive",
           "Cookie": cookies
-        }
+        },
+        timeout: 15000
       });
+
       if (!response.ok) {
         const errBody = await response.text();
-        console.error(`Hospital API error (Divisions): ${response.status} - ${errBody}`);
+        console.error(`Hospital API error (Divisions) [${requestId}]: ${response.status} - ${errBody.substring(0, 200)}`);
         if (response.status === 400 || response.status === 401) cachedCookies = [];
-        return res.status(response.status).json({ error: "Hospital API returned error", details: errBody });
+        return res.status(response.status).json({ 
+          error: "Hospital API returned error", 
+          status: response.status, 
+          details: errBody.substring(0, 500) 
+        });
       }
-      const data = await response.json();
-      res.json(data);
+
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const data = await response.json();
+        res.json(data);
+      } else {
+        const text = await response.text();
+        console.error(`Hospital API returned non-JSON response (Divisions) [${requestId}]: ${text.substring(0, 200)}`);
+        res.status(500).json({ 
+          error: "Hospital API returned non-JSON response", 
+          details: text.substring(0, 500) 
+        });
+      }
     } catch (error) {
-      console.error("Proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch divisions" });
+      console.error(`Proxy error (Divisions) [${requestId}]:`, error);
+      res.status(500).json({ 
+        error: "Failed to fetch divisions", 
+        message: error instanceof Error ? error.message : String(error),
+        requestId
+      });
     }
   });
 
   // Proxy for AppointmentProgress
   app.get("/api/AppointmentProgress", async (req, res) => {
     const { DivisionCode } = req.query;
+    const requestId = randomUUID();
     try {
       const cookies = await getCookies();
-      const requestId = randomUUID();
-      const xDate = new Date().toISOString();
+      const xDate = new Date().toUTCString();
+      console.log(`Proxying AppointmentProgress request for ${DivisionCode} [${requestId}] at ${xDate}`);
+      
       const response = await fetch(`https://www.skh.org.tw/regis_api/AppointmentProgress?DivisionCode=${DivisionCode}`, {
         method: "GET",
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
           "Accept": "application/json, text/plain, */*",
           "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
-          "Accept-Encoding": "gzip, deflate, br",
+          "Accept-Encoding": "gzip, deflate",
           "Content-Type": "application/json",
           "X-Request-ID": requestId,
           "X-Date": xDate,
@@ -87,19 +117,40 @@ async function startServer() {
           "Origin": "https://www.skh.org.tw",
           "Connection": "keep-alive",
           "Cookie": cookies
-        }
+        },
+        timeout: 15000
       });
+
       if (!response.ok) {
         const errBody = await response.text();
-        console.error(`Hospital API error (Progress): ${response.status} - ${errBody}`);
+        console.error(`Hospital API error (Progress) [${requestId}]: ${response.status} - ${errBody.substring(0, 200)}`);
         if (response.status === 400 || response.status === 401) cachedCookies = [];
-        return res.status(response.status).json({ error: "Hospital API returned error", details: errBody });
+        return res.status(response.status).json({ 
+          error: "Hospital API returned error", 
+          status: response.status, 
+          details: errBody.substring(0, 500) 
+        });
       }
-      const data = await response.json();
-      res.json(data);
+
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const data = await response.json();
+        res.json(data);
+      } else {
+        const text = await response.text();
+        console.error(`Hospital API returned non-JSON response (Progress) [${requestId}]: ${text.substring(0, 200)}`);
+        res.status(500).json({ 
+          error: "Hospital API returned non-JSON response", 
+          details: text.substring(0, 500) 
+        });
+      }
     } catch (error) {
-      console.error("Proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch progress" });
+      console.error(`Proxy error (Progress) [${requestId}]:`, error);
+      res.status(500).json({ 
+        error: "Failed to fetch progress", 
+        message: error instanceof Error ? error.message : String(error),
+        requestId
+      });
     }
   });
 
