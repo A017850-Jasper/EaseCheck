@@ -20,6 +20,7 @@
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "gh-pages": "^6.3.0",
+    "https-proxy-agent": "^9.0.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "node-fetch": "^2.7.0",

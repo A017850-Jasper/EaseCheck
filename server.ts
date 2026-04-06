@@ -2,12 +2,19 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import fetch from "node-fetch";
 import { randomUUID } from "crypto";
+import { HttpsProxyAgent } from "https-proxy-agent";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   let cachedCookies: string[] = [];
+  const PROXY_URL = process.env.PROXY_URL;
+  const agent = PROXY_URL ? new HttpsProxyAgent(PROXY_URL) : undefined;
+
+  if (PROXY_URL) {
+    console.log("Using proxy for hospital requests:", PROXY_URL.split("@").pop());
+  }
 
   async function getCookies() {
     if (cachedCookies.length > 0) return cachedCookies.join("; ");
@@ -17,7 +24,8 @@ async function startServer() {
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         },
-        timeout: 10000
+        timeout: 10000,
+        agent
       });
       const setCookie = response.headers.raw()["set-cookie"];
       if (setCookie) {
@@ -57,7 +65,8 @@ async function startServer() {
           "Connection": "keep-alive",
           "Cookie": cookies
         },
-        timeout: 15000
+        timeout: 15000,
+        agent
       });
 
       if (!response.ok) {
@@ -84,12 +93,17 @@ async function startServer() {
         });
       }
     } catch (error) {
-      const isTimeout = error instanceof Error && (error.name === 'FetchError' && (error as any).code === 'ETIMEDOUT' || error.message.includes('timeout'));
+      const err = error as any;
+      const isTimeout = err.type === 'request-timeout' || err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT';
       console.error(`Proxy error (Divisions) [${requestId}]:`, error);
+      
+      res.setHeader('Content-Type', 'application/json');
       res.status(isTimeout ? 504 : 500).json({ 
         error: isTimeout ? "Hospital Server Connection Timeout" : "Failed to fetch divisions", 
-        message: error instanceof Error ? error.message : String(error),
-        details: isTimeout ? "醫院伺服器連線逾時，可能是醫院端暫時封鎖了雲端伺服器的 IP，或醫院系統正在維護中。" : undefined,
+        message: err.message || String(error),
+        details: isTimeout ? "醫院伺服器連線逾時（Timeout）。這通常是因為醫院端封鎖了雲端伺服器的連線，或是醫院系統目前負載過高。" : "伺服器內部錯誤",
+        type: err.type,
+        code: err.code,
         requestId
       });
     }
@@ -120,13 +134,16 @@ async function startServer() {
           "Connection": "keep-alive",
           "Cookie": cookies
         },
-        timeout: 15000
+        timeout: 15000,
+        agent
       });
 
       if (!response.ok) {
         const errBody = await response.text();
         console.error(`Hospital API error (Progress) [${requestId}]: ${response.status} - ${errBody.substring(0, 200)}`);
         if (response.status === 400 || response.status === 401) cachedCookies = [];
+        
+        res.setHeader('Content-Type', 'application/json');
         return res.status(response.status).json({ 
           error: "Hospital API returned error", 
           status: response.status, 
@@ -141,18 +158,24 @@ async function startServer() {
       } else {
         const text = await response.text();
         console.error(`Hospital API returned non-JSON response (Progress) [${requestId}]: ${text.substring(0, 200)}`);
+        res.setHeader('Content-Type', 'application/json');
         res.status(500).json({ 
           error: "Hospital API returned non-JSON response", 
           details: text.substring(0, 500) 
         });
       }
     } catch (error) {
-      const isTimeout = error instanceof Error && (error.name === 'FetchError' && (error as any).code === 'ETIMEDOUT' || error.message.includes('timeout'));
+      const err = error as any;
+      const isTimeout = err.type === 'request-timeout' || err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT';
       console.error(`Proxy error (Progress) [${requestId}]:`, error);
+      
+      res.setHeader('Content-Type', 'application/json');
       res.status(isTimeout ? 504 : 500).json({ 
         error: isTimeout ? "Hospital Server Connection Timeout" : "Failed to fetch progress", 
-        message: error instanceof Error ? error.message : String(error),
-        details: isTimeout ? "醫院伺服器連線逾時，可能是醫院端暫時封鎖了雲端伺服器的 IP，或醫院系統正在維護中。" : undefined,
+        message: err.message || String(error),
+        details: isTimeout ? "醫院伺服器連線逾時（Timeout）。這通常是因為醫院端封鎖了雲端伺服器的連線，或是醫院系統目前負載過高。" : "伺服器內部錯誤",
+        type: err.type,
+        code: err.code,
         requestId
       });
     }
